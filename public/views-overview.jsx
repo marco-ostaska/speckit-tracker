@@ -253,7 +253,7 @@ function Dashboard({ features, onOpenFeature, onView }) {
   );
 }
 
-function CompareView({ features }) {
+function CompareView({ features, onOpenFeature }) {
   const [selected, setSelected] = uS(features.filter(f => parseTasks(f.artifacts['tasks.md']).total > 0).slice(0, 3).map(f => f.id));
 
   const toggle = (id) => {
@@ -312,8 +312,8 @@ function CompareView({ features }) {
                 <div className="stat-row"><span className="lbl">Created</span><span className="val">{meta.created || '—'}</span></div>
                 <div className="stat-row"><span className="lbl">Phases</span><span className="val">{t.phases.length}</span></div>
                 <div className="stat-row"><span className="lbl">Tasks</span><span className="val">{t.done}/{t.total}</span></div>
-                <div className="stat-row"><span className="lbl">Checklists</span><span className="val">{checklistCount}</span></div>
-                <div className="stat-row"><span className="lbl">Contracts</span><span className="val">{contractCount}</span></div>
+                <div className="stat-row"><span className="lbl">Checklists</span><span className="val" style={{cursor:checklistCount>0?'pointer':'default',color:checklistCount>0?'var(--accent)':'inherit'}} onClick={()=>checklistCount>0&&onOpenFeature(f.id,'__checklists')}>{checklistCount}</span></div>
+                <div className="stat-row"><span className="lbl">Contracts</span><span className="val" style={{cursor:contractCount>0?'pointer':'default',color:contractCount>0?'var(--accent)':'inherit'}} onClick={()=>contractCount>0&&onOpenFeature(f.id,'__contracts')}>{contractCount}</span></div>
 
                 {t.total > 0 && (
                   <div>
@@ -341,13 +341,17 @@ function CompareView({ features }) {
                   <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Artifacts</div>
                   <div style={{ display:'flex', flexWrap:'wrap', gap: 4 }}>
                     {artifactPresence.map(a => (
-                      <span key={a.name} style={{
-                        fontFamily: 'var(--font-mono)', fontSize: 10,
-                        padding: '2px 6px', borderRadius: 3,
-                        background: a.present ? 'var(--accent-soft)' : 'var(--bg-2)',
-                        color: a.present ? 'var(--accent)' : 'var(--text-4)',
-                        border: '1px solid ' + (a.present ? 'var(--accent-line)' : 'var(--border-1)'),
-                      }}>{a.name.replace('.md','')}</span>
+                      <span key={a.name}
+                        onClick={() => a.present && onOpenFeature(f.id, a.name)}
+                        title={a.present ? `Open ${a.name}` : `${a.name} not present`}
+                        style={{
+                          fontFamily: 'var(--font-mono)', fontSize: 10,
+                          padding: '2px 6px', borderRadius: 3,
+                          background: a.present ? 'var(--accent-soft)' : 'var(--bg-2)',
+                          color: a.present ? 'var(--accent)' : 'var(--text-4)',
+                          border: '1px solid ' + (a.present ? 'var(--accent-line)' : 'var(--border-1)'),
+                          cursor: a.present ? 'pointer' : 'default',
+                        }}>{a.name.replace('.md','')}</span>
                     ))}
                   </div>
                 </div>
