@@ -99,6 +99,14 @@ function App() {
   }, [tweaks]);
 
   // Opens a project by path — calls server, sets state on success
+  const handleRemoveHistory = (root) => {
+    fetch('/api/history', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ root }),
+    }).then(() => setHistory(h => h.filter(e => e.root !== root)));
+  };
+
   const handleOpen = (rootPath) => {
     setOpenError(null);
     return fetch('/api/open', {
@@ -164,6 +172,7 @@ function App() {
     return (
       <Onboarding
         onOpen={handleOpen}
+        onRemoveHistory={handleRemoveHistory}
         history={history}
         error={openError}
       />

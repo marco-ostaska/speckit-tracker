@@ -1,7 +1,7 @@
 // Onboarding, Dashboard, Compare views
 const { useState: uS, useMemo: uM } = React;
 
-function Onboarding({ onOpen, history = [], error = null }) {
+function Onboarding({ onOpen, onRemoveHistory, history = [], error = null }) {
   const [inputPath, setInputPath] = uS('');
   const [opening, setOpening] = uS(false);
 
@@ -43,6 +43,13 @@ function Onboarding({ onOpen, history = [], error = null }) {
                 <Icon.folder/>
                 <span>{r.root}</span>
                 <span className="feats">{r.features} features · {formatLastOpened(r.lastOpened)}</span>
+                <button
+                  title="Remove from history"
+                  onClick={e => { e.stopPropagation(); onRemoveHistory && onRemoveHistory(r.root); }}
+                  style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-4)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 4px', borderRadius: 3 }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--red, #c0392b)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-4)'}
+                >−</button>
               </div>
             ))}
           </div>

@@ -96,6 +96,15 @@ app.get('/api/history', (req, res) => {
   res.json(readHistory());
 });
 
+app.delete('/api/history', (req, res) => {
+  const { root } = req.body;
+  if (!root || typeof root !== 'string') return res.status(400).json({ error: 'root required' });
+  const next = readHistory().filter(h => h.root !== root);
+  fs.mkdirSync(path.dirname(HISTORY_FILE), { recursive: true });
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify(next, null, 2));
+  res.json({ ok: true });
+});
+
 app.post('/api/open', (req, res) => {
   const { root: rawRoot } = req.body;
   if (!rawRoot || typeof rawRoot !== 'string') {
