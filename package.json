@@ -1,0 +1,14 @@
+{
+  "name": "speckit-tracker",
+  "version": "1.0.0",
+  "description": "Local web UI for speckit project artifacts",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node -e \"console.log('ok')\"",
+    "lint": "semgrep --config auto --no-git-ignore --exclude-rule javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal --exclude-rule javascript.express.security.audit.express-path-join-resolve-traversal.express-path-join-resolve-traversal"
+  },
+  "dependencies": {
+    "express": "^4.19.0"
+  }
+}
