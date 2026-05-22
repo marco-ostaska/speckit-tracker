@@ -109,6 +109,11 @@ function TasksView({ md, onUpdate }) {
     }
   };
 
+  const handleMarkAllDone = () => {
+    const updated = md.split(/\r?\n/).map(l => l.replace(/^(\s*[-*+]\s+)\[ \](\s+.*)$/, '$1[x]$2')).join('\n');
+    onUpdate(updated);
+  };
+
   const stories = Object.keys(parsed.byStory).filter(s => s !== 'unscoped').sort();
 
   const filtered = (tasks) => tasks.filter(t => {
@@ -143,6 +148,7 @@ function TasksView({ md, onUpdate }) {
             </div>
           )}
           <div className="stat">{parsed.done}/{parsed.total} done</div>
+          {parsed.done < parsed.total && <button className="btn ghost" style={{fontSize:11,padding:'3px 8px'}} onClick={handleMarkAllDone}>Mark all done</button>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
           {cols.map(col => {
@@ -194,6 +200,7 @@ function TasksView({ md, onUpdate }) {
           </div>
         )}
         <div className="stat">{parsed.done}/{parsed.total} done · {parsed.phases.length} phases</div>
+          {parsed.done < parsed.total && <button className="btn ghost" style={{fontSize:11,padding:'3px 8px'}} onClick={handleMarkAllDone}>Mark all done</button>}
       </div>
 
       {parsed.phases.map((phase, pi) => {
@@ -326,14 +333,14 @@ function ContractsView({ contracts, onUpdate, editing }) {
   );
 }
 
-function FeatureDetail({ feature, onUpdateArtifact, onUpdateChecklist, onUpdateContract, layout }) {
+function FeatureDetail({ feature, onUpdateArtifact, onUpdateChecklist, onUpdateContract, layout, initialTab }) {
   const [tabId, setTabId] = uS2('spec.md');
   const [editing, setEditing] = uS2(false);
   const [saved, setSaved] = uS2(false);
 
-  // Reset to spec tab when feature changes
+  // Reset tab when feature changes; honour initialTab when navigating from Compare
   uE2(() => {
-    setTabId('spec.md');
+    setTabId(initialTab || 'spec.md');
     setEditing(false);
   }, [feature.id]);
 
@@ -371,6 +378,12 @@ function FeatureDetail({ feature, onUpdateArtifact, onUpdateChecklist, onUpdateC
     triggerSave();
   };
 
+  const handleInlineToggle = (idx) => {
+    const updated = toggleTaskInMarkdown(feature.artifacts[tabId] || '', idx);
+    onUpdateArtifact(feature.id, tabId, updated);
+    triggerSave();
+  };
+
   const handleChecklistChange = (name, v) => {
     onUpdateChecklist(feature.id, name, v);
     triggerSave();
@@ -405,7 +418,7 @@ function FeatureDetail({ feature, onUpdateArtifact, onUpdateChecklist, onUpdateC
     } else if (editing) {
       body = <SplitEditor md={currentMd} onChange={handleArtifactChange}/>;
     } else {
-      body = <MarkdownView md={currentMd}/>;
+      body = <MarkdownView md={currentMd} onToggleTask={handleInlineToggle}/>;
     }
   } else if (tabId === '__checklists') {
     body = <ChecklistsView checklists={feature.checklists} onUpdate={handleChecklistChange}/>;

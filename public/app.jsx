@@ -50,6 +50,7 @@ function App() {
   const [writeError, setWriteError] = aS(null);
   const [view, setView] = aS('dashboard');
   const [currentId, setCurrentId] = aS(null);
+  const [pendingTab, setPendingTab] = aS(null);
   const persistDebounced = usePersistDebounced(600);
 
   const showWriteError = (err) => {
@@ -121,9 +122,18 @@ function App() {
       .catch(err => { setOpenError(err.message); });
   };
 
-  const handleSelectFeature = (id) => {
+  const handleSelectFeature = (id, tabId = null) => {
     setCurrentId(id);
+    setPendingTab(tabId);
     setView('feature');
+  };
+
+  const handleReload = () => {
+    if (!projectRoot) return;
+    fetch('/api/features')
+      .then(r => r.json())
+      .then(({ features: data }) => setFeatures(data))
+      .catch(err => console.error('Reload error:', err));
   };
 
   const handleUpdateArtifact = (featId, artifact, content) => {
@@ -169,6 +179,7 @@ function App() {
         onRoot={() => setOpened(false)}
         dark={tweaks.theme === 'dark'}
         onToggleTheme={() => setTweak('theme', tweaks.theme === 'dark' ? 'light' : 'dark')}
+        onReload={handleReload}
       />
       <div className="shell">
         <Sidebar
@@ -180,7 +191,7 @@ function App() {
         />
         {view === 'dashboard' && <Dashboard features={features} onOpenFeature={handleSelectFeature} onView={setView}/>}
         {view === 'features' && <FeatureListView features={features} onOpenFeature={handleSelectFeature}/>}
-        {view === 'compare' && <CompareView features={features}/>}
+        {view === 'compare' && <CompareView features={features} onOpenFeature={handleSelectFeature}/>}
         {view === 'feature' && current && (
           <FeatureDetail
             feature={current}
@@ -188,6 +199,7 @@ function App() {
             onUpdateArtifact={handleUpdateArtifact}
             onUpdateChecklist={handleUpdateChecklist}
             onUpdateContract={handleUpdateContract}
+            initialTab={pendingTab}
           />
         )}
       </div>

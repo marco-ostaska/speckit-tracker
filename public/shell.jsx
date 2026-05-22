@@ -20,7 +20,7 @@ const Icon = {
   refresh: (p) => <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" {...p}><path d="M2 7a5 5 0 019-3M12 7a5 5 0 01-9 3"/><path d="M11 1.5v3h-3M3 12.5v-3h3"/></svg>,
 };
 
-function Titlebar({ projectPath, onRoot, dark, onToggleTheme }) {
+function Titlebar({ projectPath, onRoot, dark, onToggleTheme, onReload }) {
   return (
     <div className="titlebar">
       <div className="tb-traffic">
@@ -36,7 +36,7 @@ function Titlebar({ projectPath, onRoot, dark, onToggleTheme }) {
       <div className="tb-spacer"></div>
       <button className="tb-action" onClick={onToggleTheme}>{dark ? '☾' : '☀'}</button>
       <button className="tb-action" onClick={onRoot}>change project</button>
-      <button className="tb-action"><Icon.refresh/></button>
+      <button className="tb-action" title="Reload features from disk" onClick={onReload}><Icon.refresh/></button>
     </div>
   );
 }
