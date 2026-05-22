@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const rateLimit = require('express-rate-limit');
 
 const HISTORY_FILE = path.join(os.homedir(), '.speckit-tracker', 'history.json');
 const ARTIFACT_FILES = ['spec.md', 'plan.md', 'tasks.md', 'data-model.md', 'research.md', 'quickstart.md'];
@@ -43,39 +44,45 @@ function readDir(p) {
   try { return fs.readdirSync(p); } catch { return []; }
 }
 
-// Uses module-level currentRoot — not a user-tainted parameter.
-// All sub-paths are built from readdirSync results and a hardcoded constant list.
 function loadFeatures() {
-  const specsDir = path.join(currentRoot, 'specs');
+  const specsDir = path.resolve(currentRoot, 'specs');
+  const specsDirBound = specsDir + path.sep;
   const entries = fs.readdirSync(specsDir, { withFileTypes: true })
     .filter(e => e.isDirectory() && /^\d+-.+/.test(e.name))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return entries.map(e => {
-    const featDir = path.join(specsDir, e.name);
+    const featDir = path.resolve(specsDir, e.name);
+    if (!featDir.startsWith(specsDirBound)) return null;
 
     const artifacts = {};
     for (const f of ARTIFACT_FILES) {
-      const content = readFileOpt(path.join(featDir, f));
-      if (content !== null) artifacts[f] = content;
+      const p = path.resolve(featDir, f);
+      if (p.startsWith(featDir + path.sep)) {
+        const content = readFileOpt(p);
+        if (content !== null) artifacts[f] = content;
+      }
     }
 
     const checklists = {};
-    for (const f of readDir(path.join(featDir, 'checklists')).filter(f => f.endsWith('.md'))) {
-      checklists[f] = readFileOpt(path.join(featDir, 'checklists', f)) || '';
+    for (const f of readDir(path.resolve(featDir, 'checklists')).filter(f => f.endsWith('.md'))) {
+      const p = path.resolve(featDir, 'checklists', f);
+      if (p.startsWith(featDir + path.sep)) checklists[f] = readFileOpt(p) || '';
     }
 
     const contracts = {};
-    for (const f of readDir(path.join(featDir, 'contracts')).filter(f => f.endsWith('.md'))) {
-      contracts[f] = readFileOpt(path.join(featDir, 'contracts', f)) || '';
+    for (const f of readDir(path.resolve(featDir, 'contracts')).filter(f => f.endsWith('.md'))) {
+      const p = path.resolve(featDir, 'contracts', f);
+      if (p.startsWith(featDir + path.sep)) contracts[f] = readFileOpt(p) || '';
     }
 
     return { id: e.name, artifacts, checklists, contracts };
-  });
+  }).filter(Boolean);
 }
 
 // nosemgrep: express-check-csurf-middleware-usage — local single-user tool, no cross-origin state
 const app = express();
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, standardHeaders: true, legacyHeaders: false }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -134,19 +141,19 @@ app.put('/api/features/:id/write', (req, res) => {
     return res.status(400).json({ error: 'invalid feature id' });
   }
 
-  // Sanitize relPath: no null bytes, no .. segments, no absolute paths
-  const pathParts = relPath.split(/[/\\]/);
-  if (/\0/.test(relPath) || pathParts.some(p => p === '..') || path.isAbsolute(relPath)) {
-    return res.status(400).json({ error: 'invalid path' });
+  const specsDir = path.resolve(currentRoot, 'specs');
+  const featDir = path.resolve(specsDir, id);
+  if (!featDir.startsWith(specsDir + path.sep)) {
+    return res.status(400).json({ error: 'invalid feature id' });
   }
-
-  const specsDir = path.join(currentRoot, 'specs');
-  const featDir = path.join(specsDir, id);
   if (!fs.existsSync(featDir)) {
     return res.status(404).json({ error: 'feature not found' });
   }
 
-  const target = path.join(featDir, relPath);
+  const target = path.resolve(featDir, relPath);
+  if (!target.startsWith(featDir + path.sep)) {
+    return res.status(400).json({ error: 'invalid path' });
+  }
 
   try {
     fs.mkdirSync(path.dirname(target), { recursive: true });

@@ -9,6 +9,7 @@
     "lint": "semgrep --config auto --no-git-ignore --exclude-rule javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal --exclude-rule javascript.express.security.audit.express-path-join-resolve-traversal.express-path-join-resolve-traversal"
   },
   "dependencies": {
-    "express": "^4.19.0"
+    "express": "^4.19.0",
+    "express-rate-limit": "^7.0.0"
   }
 }

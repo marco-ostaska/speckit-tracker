@@ -26,8 +26,13 @@ const MD = (() => {
 
   function render(md) {
     if (!md) return '';
-    // Strip HTML comments
-    md = md.replace(/<!--[\s\S]*?-->/g, '');
+    // Strip HTML comments iteratively to handle any nesting
+    let commentStart;
+    while ((commentStart = md.indexOf('<!--')) !== -1) {
+      const commentEnd = md.indexOf('-->', commentStart);
+      if (commentEnd === -1) { md = md.slice(0, commentStart); break; }
+      md = md.slice(0, commentStart) + md.slice(commentEnd + 3);
+    }
     const lines = md.split(/\r?\n/);
     let out = [];
     let i = 0;
