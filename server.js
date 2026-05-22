@@ -45,7 +45,9 @@ function readDir(p) {
 }
 
 function loadFeatures() {
-  const specsDir = path.resolve(currentRoot, 'specs');
+  const rootResolved = path.resolve(currentRoot);
+  const specsDir = path.resolve(rootResolved, 'specs');
+  if (!specsDir.startsWith(rootResolved + path.sep)) throw new Error('invalid root');
   const specsDirBound = specsDir + path.sep;
   const entries = fs.readdirSync(specsDir, { withFileTypes: true })
     .filter(e => e.isDirectory() && /^\d+-.+/.test(e.name))
@@ -99,8 +101,12 @@ app.post('/api/open', (req, res) => {
   if (!rawRoot || typeof rawRoot !== 'string') {
     return res.status(400).json({ error: 'root path required' });
   }
-  const resolved = expandHome(rawRoot.trim());
-  if (!fs.existsSync(path.join(resolved, 'specs'))) {
+  const resolved = path.resolve(expandHome(rawRoot.trim()));
+  const specsCheck = path.resolve(resolved, 'specs');
+  if (!specsCheck.startsWith(resolved + path.sep)) {
+    return res.status(400).json({ error: 'invalid path' });
+  }
+  if (!fs.existsSync(specsCheck)) {
     return res.status(400).json({ error: `No specs/ directory found at ${resolved}` });
   }
 
