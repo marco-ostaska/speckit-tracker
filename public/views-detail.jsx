@@ -573,4 +573,4 @@ function FeatureListView({ features, onOpenFeature }) {
   );
 }
 
-Object.assign(window, { FeatureDetail, FeatureListView, MarkdownView, SplitEditor, TasksView });
+Object.assign(window, { FeatureDetail, FeatureListView, MarkdownView, SplitEditor, TasksView, extractOutline });

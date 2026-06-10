@@ -3,9 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const rateLimit = require('express-rate-limit');
+const { isValidWorkspaceRoot, loadWorkspace, writePrd } = require('./workspace');
 
 const HISTORY_FILE = path.join(os.homedir(), '.speckit-tracker', 'history.json');
-const ARTIFACT_FILES = ['spec.md', 'plan.md', 'tasks.md', 'data-model.md', 'research.md', 'quickstart.md'];
 
 // Server state — set at startup (CLI arg) or via POST /api/open
 let currentRoot = null;
@@ -18,8 +18,8 @@ function expandHome(p) {
 const ROOT_ARG = process.argv[2];
 if (ROOT_ARG) {
   currentRoot = expandHome(ROOT_ARG);
-  if (!fs.existsSync(path.join(currentRoot, 'specs'))) {
-    console.error(`No specs/ directory found at ${currentRoot}`);
+  if (!isValidWorkspaceRoot(currentRoot)) {
+    console.error(`No specs/ or docs/prd/ directory found at ${currentRoot}`);
     process.exit(1);
   }
 }
@@ -34,52 +34,6 @@ function saveHistory(root, featureCount) {
   const next = [entry, ...prev].slice(0, 8);
   fs.mkdirSync(path.dirname(HISTORY_FILE), { recursive: true });
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(next, null, 2));
-}
-
-function readFileOpt(p) {
-  try { return fs.readFileSync(p, 'utf8'); } catch { return null; }
-}
-
-function readDir(p) {
-  try { return fs.readdirSync(p); } catch { return []; }
-}
-
-function loadFeatures() {
-  const rootResolved = path.resolve(currentRoot);
-  const specsDir = path.resolve(rootResolved, 'specs');
-  if (!specsDir.startsWith(rootResolved + path.sep)) throw new Error('invalid root');
-  const specsDirBound = specsDir + path.sep;
-  const entries = fs.readdirSync(specsDir, { withFileTypes: true })
-    .filter(e => e.isDirectory() && /^\d+-.+/.test(e.name))
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  return entries.map(e => {
-    const featDir = path.resolve(specsDir, e.name);
-    if (!featDir.startsWith(specsDirBound)) return null;
-
-    const artifacts = {};
-    for (const f of ARTIFACT_FILES) {
-      const p = path.resolve(featDir, f);
-      if (p.startsWith(featDir + path.sep)) {
-        const content = readFileOpt(p);
-        if (content !== null) artifacts[f] = content;
-      }
-    }
-
-    const checklists = {};
-    for (const f of readDir(path.resolve(featDir, 'checklists')).filter(f => f.endsWith('.md'))) {
-      const p = path.resolve(featDir, 'checklists', f);
-      if (p.startsWith(featDir + path.sep)) checklists[f] = readFileOpt(p) || '';
-    }
-
-    const contracts = {};
-    for (const f of readDir(path.resolve(featDir, 'contracts')).filter(f => f.endsWith('.md'))) {
-      const p = path.resolve(featDir, 'contracts', f);
-      if (p.startsWith(featDir + path.sep)) contracts[f] = readFileOpt(p) || '';
-    }
-
-    return { id: e.name, artifacts, checklists, contracts };
-  }).filter(Boolean);
 }
 
 // nosemgrep: express-check-csurf-middleware-usage — local single-user tool, no cross-origin state
@@ -111,21 +65,17 @@ app.post('/api/open', (req, res) => {
     return res.status(400).json({ error: 'root path required' });
   }
   const resolved = path.resolve(expandHome(rawRoot.trim()));
-  const specsCheck = path.resolve(resolved, 'specs');
-  if (!specsCheck.startsWith(resolved + path.sep)) {
-    return res.status(400).json({ error: 'invalid path' });
-  }
-  if (!fs.existsSync(specsCheck)) {
-    return res.status(400).json({ error: `No specs/ directory found at ${resolved}` });
+  if (!isValidWorkspaceRoot(resolved)) {
+    return res.status(400).json({ error: `No specs/ or docs/prd/ directory found at ${resolved}` });
   }
 
-  // Commit currentRoot so loadFeatures() can use it; roll back on error
+  // Commit currentRoot so workspace loading can use it; roll back on error.
   const prevRoot = currentRoot;
   currentRoot = resolved;
   try {
-    const features = loadFeatures();
-    saveHistory(resolved, features.length);
-    res.json({ root: currentRoot, features });
+    const workspace = loadWorkspace(currentRoot);
+    saveHistory(resolved, workspace.features.length);
+    res.json({ root: currentRoot, ...workspace });
   } catch (err) {
     currentRoot = prevRoot;
     res.status(500).json({ error: err.message });
@@ -135,7 +85,7 @@ app.post('/api/open', (req, res) => {
 app.get('/api/features', (req, res) => {
   if (!currentRoot) return res.status(400).json({ error: 'no project open' });
   try {
-    res.json({ root: currentRoot, features: loadFeatures() });
+    res.json({ root: currentRoot, ...loadWorkspace(currentRoot) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -176,6 +126,19 @@ app.put('/api/features/:id/write', (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/prds/:filename/write', (req, res) => {
+  if (!currentRoot) return res.status(400).json({ error: 'no project open' });
+  if (typeof req.body.content !== 'string') return res.status(400).json({ error: 'content required' });
+
+  try {
+    writePrd(currentRoot, req.params.filename, req.body.content);
+    res.json({ ok: true });
+  } catch (err) {
+    const status = err.message === 'PRD not found' ? 404 : 400;
+    res.status(status).json({ error: err.message });
   }
 });
 

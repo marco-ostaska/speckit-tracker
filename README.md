@@ -1,14 +1,16 @@
 # Speckit Tracker
 
-A local web UI for [spec-kit](https://github.com/github/spec-kit) projects — render, navigate, and edit all your specs from a single place without touching raw markdown files.
+A local web UI for [spec-kit](https://github.com/github/spec-kit) projects — render, navigate, and edit PRDs and specs from a single place without touching raw markdown files.
 
 [Spec-kit](https://github.com/github/spec-kit) generates a `specs/` directory with feature folders containing `spec.md`, `plan.md`, `tasks.md`, `data-model.md`, contracts, checklists, and more. Speckit Tracker reads that directory and gives you a polished interface to browse and edit everything.
 
 ## Features
 
 - Sidebar with all features and live task completion progress
+- PRD library for direct Markdown files under `docs/prd/`, ordered oldest first
 - Tabs for every artifact: spec, plan, tasks, data model, research, quickstart, checklists, contracts
 - Inline markdown editing — saves write directly back to disk
+- Focus mode for distraction-free document reading
 - Dashboard with aggregate progress across all features
 - Project history — recently opened projects remembered between sessions
 - Dark/light theme, density, font, and accent color tweaks
@@ -31,7 +33,7 @@ node server.js /path/to/your/spec-kit-project
 
 Open http://localhost:3000
 
-The project root must contain a `specs/` directory with feature directories matching `<NNN>-<slug>/` — the standard spec-kit layout.
+The project root must contain either `docs/prd/`, `specs/`, or both. PRDs are direct `.md` files under `docs/prd/`; feature directories under `specs/` must match `<NNN>-<slug>/`.
 
 ## Network access
 

@@ -1,5 +1,5 @@
 // Main app — orchestrates routing, state, tweaks
-const { useState: aS, useEffect: aE, useMemo: aM, useRef: aR, useCallback: aC } = React;
+const { useState: aS, useEffect: aE, useMemo: aM, useRef: aR, useCallback: aC, useReducer: aD } = React;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "dark",
@@ -28,6 +28,16 @@ function persist(featId, relPath, content) {
   });
 }
 
+function persistPrd(filename, content) {
+  return fetch(`/api/prds/${encodeURIComponent(filename)}/write`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  }).then(r => {
+    if (!r.ok) return r.json().then(body => { throw new Error(body.error || r.statusText); });
+  });
+}
+
 // Per-feature debounce: each featId gets its own timer so switching features
 // never cancels a pending save for a different feature.
 function usePersistDebounced(delay = 600) {
@@ -40,18 +50,32 @@ function usePersistDebounced(delay = 600) {
   }, [delay]);
 }
 
+function usePrdPersistDebounced(delay = 600) {
+  const timers = aR({});
+  return aC((filename, content, onError) => {
+    clearTimeout(timers.current[filename]);
+    timers.current[filename] = setTimeout(() => {
+      persistPrd(filename, content).catch(onError);
+    }, delay);
+  }, [delay]);
+}
+
 function App() {
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [opened, setOpened] = aS(false);
   const [projectRoot, setProjectRoot] = aS('');
   const [features, setFeatures] = aS([]);
+  const [prds, setPrds] = aS([]);
   const [history, setHistory] = aS([]);
   const [openError, setOpenError] = aS(null);
   const [writeError, setWriteError] = aS(null);
   const [view, setView] = aS('dashboard');
   const [currentId, setCurrentId] = aS(null);
+  const [currentPrd, setCurrentPrd] = aS(null);
   const [pendingTab, setPendingTab] = aS(null);
+  const [focusMode, dispatchFocus] = aD(focusModeReducer, false);
   const persistDebounced = usePersistDebounced(600);
+  const persistPrdDebounced = usePrdPersistDebounced(600);
 
   const showWriteError = (err) => {
     setWriteError(err.message || 'Save failed');
@@ -72,14 +96,24 @@ function App() {
             if (!r.ok) return r.json().then(b => { throw new Error(b.error || r.statusText); });
             return r.json();
           })
-          .then(({ root, features: data }) => {
+          .then(({ root, features: data, prds: prdData = [] }) => {
             setProjectRoot(root);
             setFeatures(data);
+            setPrds(prdData);
             setCurrentId(data[1]?.id || data[0]?.id);
+            setCurrentPrd(prdData[0]?.filename || null);
             setOpened(true);
           });
       }
     }).catch(err => console.error('Startup error:', err));
+  }, []);
+
+  aE(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') dispatchFocus({ type: 'escape' });
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Apply tweaks to document
@@ -119,7 +153,9 @@ function App() {
         if (!ok) throw new Error(body.error);
         setProjectRoot(body.root);
         setFeatures(body.features);
+        setPrds(body.prds || []);
         setCurrentId(body.features[1]?.id || body.features[0]?.id);
+        setCurrentPrd(body.prds?.[0]?.filename || null);
         setHistory(h => {
           const filtered = h.filter(e => e.root !== body.root);
           return [{ root: body.root, features: body.features.length, lastOpened: new Date().toISOString() }, ...filtered].slice(0, 8);
@@ -131,16 +167,34 @@ function App() {
   };
 
   const handleSelectFeature = (id, tabId = null) => {
+    dispatchFocus({ type: 'document-change' });
     setCurrentId(id);
     setPendingTab(tabId);
     setView('feature');
+  };
+
+  const handleOpenPrd = (filename) => {
+    dispatchFocus({ type: 'document-change' });
+    setCurrentPrd(filename);
+    setView('prd');
+  };
+
+  const handleView = (nextView) => {
+    dispatchFocus({ type: 'navigate' });
+    setView(nextView);
   };
 
   const handleReload = () => {
     if (!projectRoot) return;
     fetch('/api/features')
       .then(r => r.json())
-      .then(({ features: data }) => setFeatures(data))
+      .then(({ features: data, prds: prdData = [] }) => {
+        setFeatures(data);
+        setPrds(prdData);
+        if (currentPrd && !prdData.some(prd => prd.filename === currentPrd)) {
+          setCurrentPrd(prdData[0]?.filename || null);
+        }
+      })
       .catch(err => console.error('Reload error:', err));
   };
 
@@ -168,6 +222,14 @@ function App() {
     persistDebounced(featId, `contracts/${name}`, content, showWriteError);
   };
 
+  const handleUpdatePrd = (filename, content) => {
+    setPrds(items => items.map(prd => prd.filename === filename
+      ? { ...prd, content, title: prdDisplayTitle(content, filename) }
+      : prd
+    ));
+    persistPrdDebounced(filename, content, showWriteError);
+  };
+
   if (!opened) {
     return (
       <Onboarding
@@ -180,26 +242,33 @@ function App() {
   }
 
   const current = features.find(f => f.id === currentId);
+  const selectedPrd = prds.find(prd => prd.filename === currentPrd);
+  const focusAvailable = (view === 'feature' && !!current) || (view === 'prd' && !!selectedPrd);
 
   return (
-    <div className="app">
+    <div className="app" data-focus={focusMode ? '1' : '0'}>
       <Titlebar
         projectPath={projectRoot}
-        onRoot={() => setOpened(false)}
+        onRoot={() => { dispatchFocus({ type: 'navigate' }); setOpened(false); }}
         dark={tweaks.theme === 'dark'}
         onToggleTheme={() => setTweak('theme', tweaks.theme === 'dark' ? 'light' : 'dark')}
         onReload={handleReload}
+        focusAvailable={focusAvailable}
+        focusMode={focusMode}
+        onToggleFocus={() => dispatchFocus({ type: 'toggle' })}
       />
       <div className="shell">
         <Sidebar
           features={features}
+          prds={prds}
           view={view}
           currentId={currentId}
           onSelect={handleSelectFeature}
-          onView={setView}
+          onView={handleView}
         />
-        {view === 'dashboard' && <Dashboard features={features} onOpenFeature={handleSelectFeature} onView={setView}/>}
+        {view === 'dashboard' && <Dashboard features={features} onOpenFeature={handleSelectFeature} onView={handleView}/>}
         {view === 'features' && <FeatureListView features={features} onOpenFeature={handleSelectFeature}/>}
+        {view === 'prds' && <PrdListView prds={prds} onOpenPrd={handleOpenPrd}/>}
         {view === 'compare' && <CompareView features={features} onOpenFeature={handleSelectFeature}/>}
         {view === 'feature' && current && (
           <FeatureDetail
@@ -211,6 +280,7 @@ function App() {
             initialTab={pendingTab}
           />
         )}
+        {view === 'prd' && selectedPrd && <PrdDetail prd={selectedPrd} onUpdate={handleUpdatePrd}/>}
       </div>
 
       {writeError && (

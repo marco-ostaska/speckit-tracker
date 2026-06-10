@@ -4,6 +4,8 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Speckit Tracker</title>
+<script src="theme-preference.js"></script>
+<script>document.documentElement.dataset.theme = readStoredTheme() || 'dark';</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
@@ -16,9 +18,11 @@
 <script type="text/babel" src="markdown.jsx"></script>
 <script type="text/babel" src="parsers.jsx"></script>
 <script type="text/babel" src="tweaks-panel.jsx"></script>
+<script src="focus-mode.js"></script>
 <script type="text/babel" src="shell.jsx"></script>
 <script type="text/babel" src="views-overview.jsx"></script>
 <script type="text/babel" src="views-detail.jsx"></script>
+<script type="text/babel" src="views-prds.jsx"></script>
 <script type="text/babel" src="app.jsx"></script>
 </head>
 <body>

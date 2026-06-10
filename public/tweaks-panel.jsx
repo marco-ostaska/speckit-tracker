@@ -157,10 +157,13 @@ const __TWEAKS_STYLE = `
 `;
 
 // ── useTweaks ───────────────────────────────────────────────────────────────
-// Single source of truth for tweak values. setTweak persists via the host
-// (__edit_mode_set_keys → host rewrites the EDITMODE block on disk).
+// Single source of truth for tweak values. Theme is retained locally while
+// all edits continue through the host protocol used by the prototype tooling.
 function useTweaks(defaults) {
-  const [values, setValues] = React.useState(defaults);
+  const [values, setValues] = React.useState(() => ({
+    ...defaults,
+    theme: window.readStoredTheme() || defaults.theme,
+  }));
   // Accepts either setTweak('key', value) or setTweak({ key: value, ... }) so a
   // useState-style call doesn't write a "[object Object]" key into the persisted
   // JSON block.
@@ -168,6 +171,7 @@ function useTweaks(defaults) {
     const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
       ? keyOrEdits : { [keyOrEdits]: val };
     setValues((prev) => ({ ...prev, ...edits }));
+    if (edits.theme !== undefined) window.writeStoredTheme(undefined, edits.theme);
     window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, window.location.origin);
     // Same-window signal so in-page listeners (deck-stage rail thumbnails)
     // can react — the parent message only reaches the host, not peers.

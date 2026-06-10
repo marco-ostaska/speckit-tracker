@@ -25,7 +25,7 @@ function Onboarding({ onOpen, onRemoveHistory, history = [], error = null }) {
       <div className="onboarding-card">
         <div className="logo">S</div>
         <h1>Open a speckit project</h1>
-        <div className="sub">Point Speckit Tracker at any directory that contains <code style={{fontFamily:'var(--font-mono)',color:'var(--accent)',fontSize:'12px'}}>specs/&lt;NNN&gt;-&lt;slug&gt;/</code> feature folders.</div>
+        <div className="sub">Point Speckit Tracker at a project containing <code style={{fontFamily:'var(--font-mono)',color:'var(--accent)',fontSize:'12px'}}>specs/</code>, <code style={{fontFamily:'var(--font-mono)',color:'var(--accent)',fontSize:'12px'}}>docs/prd/</code>, or both.</div>
 
         <div className="field-label">Project root</div>
         <div className="path-input">

@@ -18,9 +18,10 @@ const Icon = {
   folder: (p) => <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" {...p}><path d="M1.5 3.5h4l1.5 1.5h5.5v7h-11z"/></svg>,
   search: (p) => <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" {...p}><circle cx="6" cy="6" r="4"/><path d="M9 9l3 3"/></svg>,
   refresh: (p) => <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" {...p}><path d="M2 7a5 5 0 019-3M12 7a5 5 0 01-9 3"/><path d="M11 1.5v3h-3M3 12.5v-3h3"/></svg>,
+  focus: (p) => <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" {...p}><path d="M5 2H2v3M9 2h3v3M5 12H2V9M9 12h3V9"/></svg>,
 };
 
-function Titlebar({ projectPath, onRoot, dark, onToggleTheme, onReload }) {
+function Titlebar({ projectPath, onRoot, dark, onToggleTheme, onReload, focusAvailable, focusMode, onToggleFocus }) {
   return (
     <div className="titlebar">
       <div className="tb-traffic">
@@ -34,6 +35,11 @@ function Titlebar({ projectPath, onRoot, dark, onToggleTheme, onReload }) {
         <span className="tb-badge">speckit</span>
       </div>
       <div className="tb-spacer"></div>
+      {focusAvailable && (
+        <button className={'tb-action' + (focusMode ? ' active' : '')} onClick={onToggleFocus} title="Toggle focus mode">
+          <Icon.focus/> {focusMode ? 'exit focus' : 'focus'}
+        </button>
+      )}
       <button className="tb-action" onClick={onToggleTheme}>{dark ? '☾' : '☀'}</button>
       <button className="tb-action" onClick={onRoot}>change project</button>
       <button className="tb-action" title="Reload features from disk" onClick={onReload}><Icon.refresh/></button>
@@ -41,10 +47,11 @@ function Titlebar({ projectPath, onRoot, dark, onToggleTheme, onReload }) {
   );
 }
 
-function Sidebar({ features, view, currentId, onSelect, onView }) {
+function Sidebar({ features, prds, view, currentId, onSelect, onView }) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <Icon.dashboard/>, kbd: '⌘1' },
     { id: 'features', label: 'All features', icon: <Icon.spec/>, kbd: '⌘2' },
+    { id: 'prds', label: 'PRDs', icon: <Icon.contract/>, count: prds.length },
     { id: 'compare', label: 'Compare', icon: <Icon.compare/>, kbd: '⌘3' },
   ];
 
@@ -54,11 +61,12 @@ function Sidebar({ features, view, currentId, onSelect, onView }) {
       <nav className="side-nav">
         {navItems.map(n => (
           <div key={n.id}
-            className={'side-item' + (view === n.id ? ' active' : '')}
+            className={'side-item' + (view === n.id || (n.id === 'prds' && view === 'prd') ? ' active' : '')}
             onClick={() => onView(n.id)}>
             <span className="icon">{n.icon}</span>
             <span>{n.label}</span>
-            <span className="kbd">{n.kbd}</span>
+            {n.count !== undefined && <span className="nav-count">{n.count}</span>}
+            {n.kbd && <span className="kbd">{n.kbd}</span>}
           </div>
         ))}
       </nav>
